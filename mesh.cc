@@ -20,6 +20,9 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/netanim-module.h"
+#include <bits/stdc++.h>
+
+using namespace std;
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("FirstScriptExample");
@@ -34,41 +37,43 @@ main (int argc, char *argv[])
   LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
   LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
 
-  NodeContainer nodes;
-  nodes.Create (2);
-
-  PointToPointHelper pointToPoint;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
-
-  NetDeviceContainer devices;
-  devices = pointToPoint.Install (nodes);
-
+  NodeContainer nd;
+  nd.Create(4);
+  PointToPointHelper p2p;
+  p2p.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
+  p2p.SetChannelAttribute ("Delay", StringValue ("2ms"));
+  vector<NetDeviceContainer> v;
+  for(int i=0;i<4;i++)
+  	for(int j=i+1;j<4;j++)
+  		v.push_back(p2p.Install(nd.Get(i),nd.Get(j)));
+  
   InternetStackHelper stack;
-  stack.Install (nodes);
-
+  stack.Install (nd);
+  vector<Ipv4InterfaceContainer> intf;
   Ipv4AddressHelper address;
-
-  address.SetBase ("10.1.1.0", "255.255.255.0");
-
-  Ipv4InterfaceContainer interfaces = address.Assign (devices);
-
+  for(int i=0;i<6;i++)
+  {
+    string s="10.1.";
+    s+=((char)'0'+i+1);
+    s+=".0";
+  	address.SetBase (s.c_str(), "255.255.255.0");
+  	intf.push_back(address.Assign(v[i]));
+  }
   UdpEchoServerHelper echoServer (9);
-
-  ApplicationContainer serverApps = echoServer.Install (nodes.Get (1));
-  serverApps.Start (Seconds (1.0));
-  serverApps.Stop (Seconds (10.0));
-
-  UdpEchoClientHelper echoClient (interfaces.GetAddress (1), 9);
+  ApplicationContainer serverApps = echoServer.Install (nd.Get (1));
+  
+  UdpEchoClientHelper echoClient(intf[4].GetAddress(0), 9);
   echoClient.SetAttribute ("MaxPackets", UintegerValue (1));
   echoClient.SetAttribute ("Interval", TimeValue (Seconds (1.0)));
   echoClient.SetAttribute ("PacketSize", UintegerValue (1024));
-
-  ApplicationContainer clientApps = echoClient.Install (nodes.Get (0));
+  ApplicationContainer clientApps = echoClient.Install (nd.Get (3));
+  
   clientApps.Start (Seconds (2.0));
   clientApps.Stop (Seconds (10.0));
-  AnimationInterface anim ("animation.xml");
+  AnimationInterface anim ("mesh.xml");
   Simulator::Run ();
   Simulator::Destroy ();
   return 0;
 }
+
+
